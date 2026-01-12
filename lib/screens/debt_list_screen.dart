@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import '../models/debt.dart';
 import '../widgets/add_debt_dialog.dart';
 import 'payment_screen.dart';
-// For formatCurrency function
+import '../utils/currency_formatter.dart';
 
 class DebtListScreen extends StatefulWidget {
   const DebtListScreen({super.key});

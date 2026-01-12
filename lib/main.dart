@@ -1,12 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:intl/intl.dart';
 import 'screens/debt_list_screen.dart';
-
-String formatCurrency(double amount) {
-  final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
-  return formatter.format(amount);
-}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
