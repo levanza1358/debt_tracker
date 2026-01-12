@@ -68,7 +68,8 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
           .getPublicUrl(fileName);
       return publicUrl;
     } catch (e) {
-      print('Upload error: $e');
+      // TODO: Use proper logging instead of print
+      // print('Upload error: $e');
       return null;
     }
   }
