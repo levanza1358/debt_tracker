@@ -42,26 +42,19 @@ Aplikasi Flutter untuk mencatat hutang pribadi dengan fitur:
 - Web: `flutter run -d web`
 
 ## Deploy ke GitHub Pages
-### Opsi 1: Script Deploy Otomatis (Paling Mudah)
-1. Jalankan script: `deploy.bat` (Windows)
-2. Script akan otomatis:
-   - Build web app
-   - Copy ke folder docs
-   - Commit & push hanya folder docs
+### Otomatis via GitHub Actions (Direkomendasikan)
+1. Push code ke GitHub repo (branch master)
+2. GitHub Actions akan otomatis:
+   - Build web app (`flutter build web --release`)
+   - Copy hasil build ke folder `/docs`
+   - Commit & push folder docs ke repo
 3. Enable GitHub Pages di repo Settings > Pages > Source: master /docs
 4. Akses di https://username.github.io/repo-name
 
-### Opsi 2: Build Manual Lokal
+### Manual Build Lokal
 1. Build web: `flutter build web --release`
-2. Copy hasil build: `xcopy build\web docs /E /I /H /Y` (Windows) atau `cp -r build/web docs` (Linux/Mac)
-3. Commit dan push: `git add docs && git commit -m "Deploy to GitHub Pages" && git push`
-4. Enable GitHub Pages di repo Settings > Pages > Source: master /docs
-5. Akses di https://username.github.io/repo-name
+2. Copy hasil build: `xcopy build\web docs /E /I /H /Y` (Windows)
+3. Commit dan push: `git add docs && git commit -m "Deploy" && git push`
+4. Enable GitHub Pages di repo Settings
 
-### Opsi 2: Via GitHub Actions (Otomatis)
-1. Push code ke GitHub
-2. Actions akan build otomatis dan copy ke docs
-3. Enable GitHub Pages di repo Settings
-4. Akses langsung tanpa manual commit
-
-**Rekomendasi**: Gunakan Opsi 1 untuk kontrol penuh, atau Opsi 2 untuk otomatis.
+**Rekomendasi**: Gunakan GitHub Actions untuk otomatis dan konsisten.
