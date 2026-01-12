@@ -137,8 +137,11 @@ class _DebtListScreenState extends State<DebtListScreen> {
           .from('payments')
           .select('jumlah_bayar')
           .eq('debt_id', debtId);
-      final payments = (response as List<dynamic>).map<double>((json) => (json['jumlah_bayar'] as num).toDouble()).toList();
-      return payments.fold(0.0, (sum, amount) => sum + amount);
+      final payments = (response as List<dynamic>).map<double>((json) {
+        final data = json as Map<String, dynamic>;
+        return (data['jumlah_bayar'] as num).toDouble();
+      }).toList();
+      return payments.fold<double>(0.0, (double sum, double amount) => sum + amount);
     } catch (e) {
       return 0.0;
     }
