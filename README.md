@@ -42,7 +42,16 @@ Aplikasi Flutter untuk mencatat hutang pribadi dengan fitur:
 - Web: `flutter run -d web`
 
 ## Deploy ke GitHub Pages
-### Opsi 1: Build Manual Lokal
+### Opsi 1: Script Deploy Otomatis (Paling Mudah)
+1. Jalankan script: `deploy.bat` (Windows)
+2. Script akan otomatis:
+   - Build web app
+   - Copy ke folder docs
+   - Commit & push hanya folder docs
+3. Enable GitHub Pages di repo Settings > Pages > Source: master /docs
+4. Akses di https://username.github.io/repo-name
+
+### Opsi 2: Build Manual Lokal
 1. Build web: `flutter build web --release`
 2. Copy hasil build: `xcopy build\web docs /E /I /H /Y` (Windows) atau `cp -r build/web docs` (Linux/Mac)
 3. Commit dan push: `git add docs && git commit -m "Deploy to GitHub Pages" && git push`
