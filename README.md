@@ -47,5 +47,11 @@ Aplikasi Flutter untuk mencatat hutang pribadi dengan fitur:
    - Go to repo Settings > Pages
    - Source: Deploy from a branch
    - Branch: master, folder: /docs
-3. Setiap push ke master akan otomatis build web dan update docs via GitHub Actions
-4. Akses di https://username.github.io/repo-name
+3. Setelah push, GitHub Actions akan build web ke folder docs (lihat di Actions tab)
+4. Commit dan push folder docs secara manual:
+   ```
+   git add docs
+   git commit -m "Deploy to GitHub Pages"
+   git push
+   ```
+5. Akses di https://username.github.io/repo-name
