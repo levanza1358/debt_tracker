@@ -48,15 +48,27 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
   Future<String?> _uploadImage(XFile imageFile) async {
     try {
       final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final file = File(imageFile.path);
-      await Supabase.instance.client.storage
-          .from('debt_photos')
-          .upload(fileName, file);
+
+      if (kIsWeb) {
+        // For web, read as bytes
+        final bytes = await imageFile.readAsBytes();
+        await Supabase.instance.client.storage
+            .from('debt_photos')
+            .uploadBinary(fileName, bytes, fileOptions: const FileOptions(contentType: 'image/jpeg'));
+      } else {
+        // For mobile, use File
+        final file = File(imageFile.path);
+        await Supabase.instance.client.storage
+            .from('debt_photos')
+            .upload(fileName, file);
+      }
+
       final publicUrl = Supabase.instance.client.storage
           .from('debt_photos')
           .getPublicUrl(fileName);
       return publicUrl;
     } catch (e) {
+      print('Upload error: $e');
       return null;
     }
   }
