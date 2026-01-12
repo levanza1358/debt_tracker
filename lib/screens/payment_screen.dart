@@ -53,6 +53,48 @@ class _PaymentScreenState extends State<PaymentScreen> {
     ).then((_) => _fetchPayments());
   }
 
+  Future<void> _deletePayment(String paymentId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Konfirmasi Hapus'),
+        content: const Text('Apakah Anda yakin ingin menghapus pembayaran ini?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await Supabase.instance.client
+            .from('payments')
+            .delete()
+            .eq('id', paymentId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Pembayaran berhasil dihapus')),
+          );
+        }
+        _fetchPayments();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e')),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final totalPaid = _payments.fold(0.0, (sum, payment) => sum + payment.jumlahBayar);
@@ -155,18 +197,28 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                       ],
                                     ),
                                   ),
-                                  if (payment.fotoUrl != null)
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: Image.network(
-                                        payment.fotoUrl!,
-                                        width: 60,
-                                        height: 60,
-                                        fit: BoxFit.cover,
+                                  Row(
+                                    children: [
+                                      if (payment.fotoUrl != null)
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Image.network(
+                                            payment.fotoUrl!,
+                                            width: 60,
+                                            height: 60,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        )
+                                      else
+                                        const Icon(Icons.image_not_supported),
+                                      const SizedBox(width: 8),
+                                      IconButton(
+                                        onPressed: () => _deletePayment(payment.id),
+                                        icon: const Icon(Icons.delete, color: Colors.red),
+                                        tooltip: 'Hapus Pembayaran',
                                       ),
-                                    )
-                                  else
-                                    const Icon(Icons.image_not_supported),
+                                    ],
+                                  ),
                                 ],
                               ),
                             ),

@@ -74,6 +74,56 @@ class _DebtListScreenState extends State<DebtListScreen> {
     ).then((_) => _fetchDebts());
   }
 
+  Future<void> _deleteDebt(String debtId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Konfirmasi Hapus'),
+        content: const Text('Apakah Anda yakin ingin menghapus hutang ini? Semua pembayaran terkait juga akan dihapus.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        // Delete related payments first
+        await Supabase.instance.client
+            .from('payments')
+            .delete()
+            .eq('debt_id', debtId);
+
+        // Then delete the debt
+        await Supabase.instance.client
+            .from('debts')
+            .delete()
+            .eq('id', debtId);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Hutang berhasil dihapus')),
+          );
+        }
+        _fetchDebts();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e')),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -103,28 +153,37 @@ class _DebtListScreenState extends State<DebtListScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      debt.namaHutang,
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.titleLarge,
-                                    ),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          debt.namaHutang,
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.titleLarge,
+                                        ),
+                                      ),
+                                      Row(
+                                        children: [
+                                          if (isFullyPaid)
+                                            const Icon(
+                                              Icons.check_circle,
+                                              color: Colors.green,
+                                            )
+                                          else
+                                            const Icon(
+                                              Icons.pending,
+                                              color: Colors.orange,
+                                            ),
+                                          IconButton(
+                                            onPressed: () => _deleteDebt(debt.id),
+                                            icon: const Icon(Icons.delete, color: Colors.red),
+                                            tooltip: 'Hapus Hutang',
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
-                                  if (isFullyPaid)
-                                    const Icon(
-                                      Icons.check_circle,
-                                      color: Colors.green,
-                                    )
-                                  else
-                                    const Icon(
-                                      Icons.pending,
-                                      color: Colors.orange,
-                                    ),
-                                ],
-                              ),
                               const SizedBox(height: 8),
                               Text(
                                 'Tanggal: ${DateFormat('dd/MM/yyyy').format(debt.tanggalHutang)}',
