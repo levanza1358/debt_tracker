@@ -52,9 +52,9 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
       if (kIsWeb) {
         // For web, read as bytes
         final bytes = await imageFile.readAsBytes();
-        await Supabase.instance.client.storage
-            .from('debt_photos')
-            .uploadBinary(fileName, bytes, fileOptions: const FileOptions(contentType: 'image/jpeg'));
+        await Supabase.instance.client.storage.from('debt_photos').uploadBinary(
+            fileName, bytes,
+            fileOptions: const FileOptions(contentType: 'image/jpeg'));
       } else {
         // For mobile, use File
         final file = File(imageFile.path);
@@ -68,8 +68,6 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
           .getPublicUrl(fileName);
       return publicUrl;
     } catch (e) {
-      // TODO: Use proper logging instead of print
-      // print('Upload error: $e');
       return null;
     }
   }
@@ -121,7 +119,8 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                 hintText: 'Contoh: 100000',
               ),
               keyboardType: TextInputType.number,
-              validator: (value) => value!.isEmpty ? 'Jumlah bayar harus diisi' : null,
+              validator: (value) =>
+                  value!.isEmpty ? 'Jumlah bayar harus diisi' : null,
             ),
             const SizedBox(height: 16),
             Row(
@@ -145,7 +144,8 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                   width: 60,
                   height: 60,
                   decoration: BoxDecoration(
-                    border: Border.all(color: _imageFile != null ? Colors.green : Colors.grey),
+                    border: Border.all(
+                        color: _imageFile != null ? Colors.green : Colors.grey),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: _imageFile != null
@@ -167,7 +167,9 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                   child: TextButton.icon(
                     onPressed: _pickImage,
                     icon: const Icon(Icons.photo_library),
-                    label: Text(_imageFile != null ? 'Ganti Bukti Bayar' : 'Pilih Bukti Bayar'),
+                    label: Text(_imageFile != null
+                        ? 'Ganti Bukti Bayar'
+                        : 'Pilih Bukti Bayar'),
                   ),
                 ),
               ],
@@ -178,8 +180,8 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                 child: Text(
                   'Bukti pembayaran akan diupload',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.green,
-                  ),
+                        color: Colors.green,
+                      ),
                 ),
               ),
           ],
