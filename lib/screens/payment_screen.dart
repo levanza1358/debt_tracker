@@ -5,6 +5,7 @@ import '../models/debt.dart';
 import '../models/payment.dart';
 import '../widgets/add_payment_dialog.dart';
 import '../utils/currency_formatter.dart';
+import 'payment_detail_screen.dart';
 
 class PaymentScreen extends StatefulWidget {
   final Debt debt;
@@ -175,51 +176,54 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         itemBuilder: (context, index) {
                           final payment = _payments[index];
                           return Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          formatCurrency(payment.jumlahBayar),
-                                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                            fontWeight: FontWeight.bold,
+                            child: InkWell(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => PaymentDetailScreen(payment: payment),
+                                  ),
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            formatCurrency(payment.jumlahBayar),
+                                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          DateFormat('dd/MM/yyyy').format(payment.tanggalBayar),
-                                          style: Theme.of(context).textTheme.bodyMedium,
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            DateFormat('dd/MM/yyyy').format(payment.tanggalBayar),
+                                            style: Theme.of(context).textTheme.bodyMedium,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Row(
+                                      children: [
+                                        if (payment.fotoUrl != null)
+                                          const Icon(Icons.image, color: Colors.green)
+                                        else
+                                          const Icon(Icons.image_not_supported, color: Colors.grey),
+                                        const SizedBox(width: 8),
+                                        IconButton(
+                                          onPressed: () => _deletePayment(payment.id),
+                                          icon: const Icon(Icons.delete, color: Colors.red),
+                                          tooltip: 'Hapus Pembayaran',
                                         ),
                                       ],
                                     ),
-                                  ),
-                                  Row(
-                                    children: [
-                                      if (payment.fotoUrl != null)
-                                        ClipRRect(
-                                          borderRadius: BorderRadius.circular(8),
-                                          child: Image.network(
-                                            payment.fotoUrl!,
-                                            width: 60,
-                                            height: 60,
-                                            fit: BoxFit.cover,
-                                          ),
-                                        )
-                                      else
-                                        const Icon(Icons.image_not_supported),
-                                      const SizedBox(width: 8),
-                                      IconButton(
-                                        onPressed: () => _deletePayment(payment.id),
-                                        icon: const Icon(Icons.delete, color: Colors.red),
-                                        tooltip: 'Hapus Pembayaran',
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           );

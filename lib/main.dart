@@ -20,12 +20,16 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Pencatatan Hutang',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+      theme: ThemeData.dark(
         useMaterial3: true,
-        cardTheme: CardThemeData(
+      ).copyWith(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blue,
+          brightness: Brightness.dark,
+        ),
+        cardTheme: const CardThemeData(
           elevation: 4,
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
