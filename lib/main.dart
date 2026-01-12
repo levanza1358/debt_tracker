@@ -123,11 +123,15 @@ class _DebtListScreenState extends State<DebtListScreen> {
       final response = await Supabase.instance.client.from('debts').select();
       _debts = (response as List).map((json) => Debt.fromJson(json)).toList();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -240,11 +244,15 @@ class _AddDebtDialogState extends State<AddDebtDialog> {
           'tanggal_hutang': _selectedDate.toIso8601String().split('T').first,
           'deskripsi': _deskripsiController.text.isEmpty ? null : _deskripsiController.text,
         });
-        Navigator.of(context).pop();
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e')),
+          );
+        }
       }
     }
   }
@@ -327,11 +335,15 @@ class _PaymentScreenState extends State<PaymentScreen> {
           .eq('debt_id', widget.debt.id);
       _payments = (response as List).map((json) => Payment.fromJson(json)).toList();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -436,7 +448,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
     try {
       final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
       final file = File(imageFile.path);
-      final response = await Supabase.instance.client.storage
+      await Supabase.instance.client.storage
           .from('debt_photos')
           .upload(fileName, file);
       final publicUrl = Supabase.instance.client.storage
@@ -462,13 +474,19 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
           'tanggal_bayar': _selectedDate.toIso8601String().split('T').first,
           'foto_url': fotoUrl,
         });
-        Navigator.of(context).pop();
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e')),
+          );
+        }
       } finally {
-        setState(() => _isUploading = false);
+        if (mounted) {
+          setState(() => _isUploading = false);
+        }
       }
     }
   }
