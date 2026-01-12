@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/intl.dart';
 import 'screens/debt_list_screen.dart';
+
+String formatCurrency(double amount) {
+  final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+  return formatter.format(amount);
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Supabase.initialize(
     url: 'https://inntsqnvfrqdhrobrygt.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlubnRzcW52ZnJxZGhyb2JyeWd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxNjg5MTksImV4cCI6MjA4Mzc0NDkxOX0.jndqk91ugv8HimpzBKmqjdjXrRCziICz2jwjwPgc7Vk',
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlubnRzcW52ZnJxZGhyb2JyeWd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxNjg5MTksImV4cCI6MjA4Mzc0NDkxOX0.jndqk91ugv8HimpzBKmqjdjXrRCziICz2jwjwPgc7Vk',
   );
   runApp(const MyApp());
 }
@@ -22,7 +29,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           elevation: 4,
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         ),

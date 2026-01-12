@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../models/debt.dart';
 import '../models/payment.dart';
 import '../widgets/add_payment_dialog.dart';
+import '../main.dart'; // For formatCurrency function
 
 class PaymentScreen extends StatefulWidget {
   final Debt debt;
@@ -76,7 +77,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                       Text(
-                        'Rp ${widget.debt.jumlahHutang.toStringAsFixed(0)}',
+                        formatCurrency(widget.debt.jumlahHutang),
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -92,7 +93,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                       Text(
-                        'Rp ${totalPaid.toStringAsFixed(0)}',
+                        formatCurrency(totalPaid),
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           color: Colors.green,
                           fontWeight: FontWeight.bold,
@@ -109,7 +110,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                       Text(
-                        'Rp ${remaining.toStringAsFixed(0)}',
+                        formatCurrency(remaining),
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           color: remaining > 0 ? Colors.red : Colors.green,
                           fontWeight: FontWeight.bold,
@@ -141,7 +142,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          'Rp ${payment.jumlahBayar.toStringAsFixed(0)}',
+                                          formatCurrency(payment.jumlahBayar),
                                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                             fontWeight: FontWeight.bold,
                                           ),
