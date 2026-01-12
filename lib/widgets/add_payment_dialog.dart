@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -127,32 +128,33 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
             const SizedBox(height: 16),
             Row(
               children: [
-                if (_imageFile != null)
-                  ClipRRect(
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: _imageFile != null ? Colors.green : Colors.grey),
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.file(
-                      File(_imageFile!.path),
-                      width: 60,
-                      height: 60,
-                      fit: BoxFit.cover,
-                    ),
-                  )
-                else
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.image, color: Colors.grey),
                   ),
+                  child: _imageFile != null
+                      ? (kIsWeb
+                          ? const Icon(Icons.check_circle, color: Colors.green)
+                          : ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.file(
+                                File(_imageFile!.path),
+                                width: 60,
+                                height: 60,
+                                fit: BoxFit.cover,
+                              ),
+                            ))
+                      : const Icon(Icons.image, color: Colors.grey),
+                ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: TextButton.icon(
                     onPressed: _pickImage,
                     icon: const Icon(Icons.photo_library),
-                    label: const Text('Pilih Bukti Bayar'),
+                    label: Text(_imageFile != null ? 'Ganti Bukti Bayar' : 'Pilih Bukti Bayar'),
                   ),
                 ),
               ],
