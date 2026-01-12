@@ -34,3 +34,4 @@ jobs:
       run: |
         rm -rf docs
         cp -r build/web docs
+        echo "Build completed. Commit and push docs folder manually."
