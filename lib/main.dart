@@ -94,6 +94,22 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
+        cardTheme: const CardTheme(
+          elevation: 4,
+          margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+        inputDecorationTheme: const InputDecorationTheme(
+          border: OutlineInputBorder(),
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
       ),
       home: const DebtListScreen(),
     );
@@ -178,6 +194,7 @@ class _DebtListScreenState extends State<DebtListScreen> {
           : _debts.isEmpty
               ? const Center(child: Text('Belum ada hutang'))
               : ListView.builder(
+                  padding: const EdgeInsets.all(16),
                   itemCount: _debts.length,
                   itemBuilder: (context, index) {
                     final debt = _debts[index];
@@ -186,14 +203,108 @@ class _DebtListScreenState extends State<DebtListScreen> {
                       builder: (context, snapshot) {
                         final totalPaid = snapshot.data ?? 0.0;
                         final remaining = debt.jumlahHutang - totalPaid;
-                        return ListTile(
-                          title: Text(debt.namaHutang),
-                          subtitle: Text(
-                            'Total: Rp ${debt.jumlahHutang.toStringAsFixed(0)}\n'
-                            'Dibayar: Rp ${totalPaid.toStringAsFixed(0)}\n'
-                            'Sisa: Rp ${remaining.toStringAsFixed(0)}',
+                        final isFullyPaid = remaining <= 0;
+
+                        return Card(
+                          child: InkWell(
+                            onTap: () => _viewPayments(debt),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          debt.namaHutang,
+                                          style: Theme.of(context).textTheme.titleLarge,
+                                        ),
+                                      ),
+                                      if (isFullyPaid)
+                                        const Icon(Icons.check_circle, color: Colors.green)
+                                      else
+                                        const Icon(Icons.pending, color: Colors.orange),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Tanggal: ${DateFormat('dd/MM/yyyy').format(debt.tanggalHutang)}',
+                                    style: Theme.of(context).textTheme.bodyMedium,
+                                  ),
+                                  if (debt.deskripsi != null && debt.deskripsi!.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Text(
+                                        'Deskripsi: ${debt.deskripsi}',
+                                        style: Theme.of(context).textTheme.bodySmall,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Total Hutang',
+                                              style: Theme.of(context).textTheme.bodySmall,
+                                            ),
+                                            Text(
+                                              'Rp ${debt.jumlahHutang.toStringAsFixed(0)}',
+                                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Sudah Dibayar',
+                                              style: Theme.of(context).textTheme.bodySmall,
+                                            ),
+                                            Text(
+                                              'Rp ${totalPaid.toStringAsFixed(0)}',
+                                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                                color: Colors.green,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Sisa',
+                                              style: Theme.of(context).textTheme.bodySmall,
+                                            ),
+                                            Text(
+                                              'Rp ${remaining.toStringAsFixed(0)}',
+                                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                                color: remaining > 0 ? Colors.red : Colors.green,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                          onTap: () => _viewPayments(debt),
                         );
                       },
                     );
@@ -260,7 +371,7 @@ class _AddDebtDialogState extends State<AddDebtDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Tambah Hutang'),
+      title: const Text('Tambah Hutang Baru'),
       content: Form(
         key: _formKey,
         child: Column(
@@ -268,27 +379,45 @@ class _AddDebtDialogState extends State<AddDebtDialog> {
           children: [
             TextFormField(
               controller: _namaController,
-              decoration: const InputDecoration(labelText: 'Nama Hutang'),
-              validator: (value) => value!.isEmpty ? 'Required' : null,
+              decoration: const InputDecoration(
+                labelText: 'Nama Hutang',
+                hintText: 'Contoh: Hutang ke Ahmad',
+              ),
+              validator: (value) => value!.isEmpty ? 'Nama hutang harus diisi' : null,
             ),
+            const SizedBox(height: 16),
             TextFormField(
               controller: _jumlahController,
-              decoration: const InputDecoration(labelText: 'Jumlah Hutang'),
+              decoration: const InputDecoration(
+                labelText: 'Jumlah Hutang (Rp)',
+                hintText: 'Contoh: 500000',
+              ),
               keyboardType: TextInputType.number,
-              validator: (value) => value!.isEmpty ? 'Required' : null,
+              validator: (value) => value!.isEmpty ? 'Jumlah hutang harus diisi' : null,
             ),
+            const SizedBox(height: 16),
             Row(
               children: [
-                Text(DateFormat('yyyy-MM-dd').format(_selectedDate)),
+                Expanded(
+                  child: Text(
+                    'Tanggal: ${DateFormat('dd/MM/yyyy').format(_selectedDate)}',
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                ),
                 TextButton(
                   onPressed: () => _selectDate(context),
-                  child: const Text('Pilih Tanggal'),
+                  child: const Text('Ubah'),
                 ),
               ],
             ),
+            const SizedBox(height: 16),
             TextFormField(
               controller: _deskripsiController,
-              decoration: const InputDecoration(labelText: 'Deskripsi (Opsional)'),
+              decoration: const InputDecoration(
+                labelText: 'Deskripsi (Opsional)',
+                hintText: 'Catatan tambahan...',
+              ),
+              maxLines: 2,
             ),
           ],
         ),
@@ -298,7 +427,7 @@ class _AddDebtDialogState extends State<AddDebtDialog> {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Batal'),
         ),
-        TextButton(
+        ElevatedButton(
           onPressed: _saveDebt,
           child: const Text('Simpan'),
         ),
@@ -365,13 +494,61 @@ class _PaymentScreenState extends State<PaymentScreen> {
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: Theme.of(context).colorScheme.surfaceVariant,
+            child: Row(
               children: [
-                Text('Total Hutang: Rp ${widget.debt.jumlahHutang.toStringAsFixed(0)}'),
-                Text('Total Dibayar: Rp ${totalPaid.toStringAsFixed(0)}'),
-                Text('Sisa: Rp ${remaining.toStringAsFixed(0)}'),
+                Expanded(
+                  child: Column(
+                    children: [
+                      Text(
+                        'Total Hutang',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      Text(
+                        'Rp ${widget.debt.jumlahHutang.toStringAsFixed(0)}',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    children: [
+                      Text(
+                        'Total Dibayar',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      Text(
+                        'Rp ${totalPaid.toStringAsFixed(0)}',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    children: [
+                      Text(
+                        'Sisa',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      Text(
+                        'Rp ${remaining.toStringAsFixed(0)}',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: remaining > 0 ? Colors.red : Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -381,15 +558,48 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 : _payments.isEmpty
                     ? const Center(child: Text('Belum ada pembayaran'))
                     : ListView.builder(
+                        padding: const EdgeInsets.all(16),
                         itemCount: _payments.length,
                         itemBuilder: (context, index) {
                           final payment = _payments[index];
-                          return ListTile(
-                            title: Text('Rp ${payment.jumlahBayar.toStringAsFixed(0)}'),
-                            subtitle: Text(DateFormat('yyyy-MM-dd').format(payment.tanggalBayar)),
-                            trailing: payment.fotoUrl != null
-                                ? Image.network(payment.fotoUrl!, width: 50, height: 50, fit: BoxFit.cover)
-                                : null,
+                          return Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Rp ${payment.jumlahBayar.toStringAsFixed(0)}',
+                                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          DateFormat('dd/MM/yyyy').format(payment.tanggalBayar),
+                                          style: Theme.of(context).textTheme.bodyMedium,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (payment.fotoUrl != null)
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.network(
+                                        payment.fotoUrl!,
+                                        width: 60,
+                                        height: 60,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    )
+                                  else
+                                    const Icon(Icons.image_not_supported),
+                                ],
+                              ),
+                            ),
                           );
                         },
                       ),
@@ -502,30 +712,71 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
           children: [
             TextFormField(
               controller: _jumlahController,
-              decoration: const InputDecoration(labelText: 'Jumlah Bayar'),
+              decoration: const InputDecoration(
+                labelText: 'Jumlah Bayar (Rp)',
+                hintText: 'Contoh: 100000',
+              ),
               keyboardType: TextInputType.number,
-              validator: (value) => value!.isEmpty ? 'Required' : null,
+              validator: (value) => value!.isEmpty ? 'Jumlah bayar harus diisi' : null,
             ),
+            const SizedBox(height: 16),
             Row(
               children: [
-                Text(DateFormat('yyyy-MM-dd').format(_selectedDate)),
+                Expanded(
+                  child: Text(
+                    'Tanggal: ${DateFormat('dd/MM/yyyy').format(_selectedDate)}',
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                ),
                 TextButton(
                   onPressed: () => _selectDate(context),
-                  child: const Text('Pilih Tanggal'),
+                  child: const Text('Ubah'),
                 ),
               ],
             ),
+            const SizedBox(height: 16),
             Row(
               children: [
-                _imageFile != null
-                    ? Image.file(File(_imageFile!.path), width: 50, height: 50, fit: BoxFit.cover)
-                    : const Text('Tidak ada gambar'),
-                TextButton(
-                  onPressed: _pickImage,
-                  child: const Text('Pilih Gambar'),
+                if (_imageFile != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.file(
+                      File(_imageFile!.path),
+                      width: 60,
+                      height: 60,
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                else
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.image, color: Colors.grey),
+                  ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextButton.icon(
+                    onPressed: _pickImage,
+                    icon: const Icon(Icons.photo_library),
+                    label: const Text('Pilih Bukti Bayar'),
+                  ),
                 ),
               ],
             ),
+            if (_imageFile != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'Bukti pembayaran akan diupload',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.green,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -535,8 +786,12 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
           child: const Text('Batal'),
         ),
         _isUploading
-            ? const CircularProgressIndicator()
-            : TextButton(
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : ElevatedButton(
                 onPressed: _savePayment,
                 child: const Text('Simpan'),
               ),
