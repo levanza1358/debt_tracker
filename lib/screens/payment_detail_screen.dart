@@ -45,11 +45,9 @@ class PaymentDetailScreen extends StatelessWidget {
                       children: [
                         const Icon(Icons.calendar_today),
                         const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Tanggal & Waktu: ${DateFormat('EEEE, dd MMMM yyyy \'pukul\' HH:mm', 'id_ID').format(payment.tanggalBayar)}',
-                            style: Theme.of(context).textTheme.bodyLarge,
-                          ),
+                        Text(
+                          'Tanggal: ${DateFormat('EEEE, dd MMMM yyyy', 'id_ID').format(payment.tanggalBayar)}',
+                          style: Theme.of(context).textTheme.bodyLarge,
                         ),
                       ],
                     ),
