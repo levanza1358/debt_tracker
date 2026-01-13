@@ -202,7 +202,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                           ),
                                           const SizedBox(height: 4),
                                         Text(
-                                          DateFormat('dd/MM/yyyy HH:mm').format(payment.tanggalBayar),
+                                          DateFormat('dd/MM/yyyy').format(payment.tanggalBayar),
                                           style: Theme.of(context).textTheme.bodyMedium,
                                         ),
                                         ],
