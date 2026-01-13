@@ -55,6 +55,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   Future<void> _deletePayment(String paymentId) async {
+    // PIN verification first
+    final pinVerified = await showDialog<bool>(
+      context: context,
+      builder: (context) => _PinDialog(),
+    );
+
+    if (pinVerified != true) {
+      return; // Cancel deletion if PIN is wrong or cancelled
+    }
+
+    // Confirmation dialog after PIN verification
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -201,10 +212,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                             ),
                                           ),
                                           const SizedBox(height: 4),
-                                        Text(
-                                          DateFormat('dd/MM/yyyy').format(payment.tanggalBayar),
-                                          style: Theme.of(context).textTheme.bodyMedium,
-                                        ),
+                                          Text(
+                                            DateFormat('dd/MM/yyyy').format(payment.tanggalBayar),
+                                            style: Theme.of(context).textTheme.bodyMedium,
+                                          ),
                                         ],
                                       ),
                                     ),
@@ -236,6 +247,80 @@ class _PaymentScreenState extends State<PaymentScreen> {
         onPressed: _addPayment,
         child: const Icon(Icons.add),
       ),
+    );
+  }
+}
+
+class _PinDialog extends StatefulWidget {
+  const _PinDialog();
+
+  @override
+  State<_PinDialog> createState() => _PinDialogState();
+}
+
+class _PinDialogState extends State<_PinDialog> {
+  final TextEditingController _pinController = TextEditingController();
+  String _errorMessage = '';
+
+  @override
+  void dispose() {
+    _pinController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Verifikasi PIN'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Masukkan PIN untuk menghapus pembayaran:'),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _pinController,
+            obscureText: true,
+            keyboardType: TextInputType.number,
+            maxLength: 4,
+            decoration: const InputDecoration(
+              labelText: 'PIN',
+              hintText: '4 digit PIN',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          if (_errorMessage.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                _errorMessage,
+                style: const TextStyle(color: Colors.red),
+              ),
+            ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Batal'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (_pinController.text == '3351') {
+              Navigator.of(context).pop(true);
+            } else {
+              setState(() {
+                _errorMessage = 'PIN salah! Coba lagi.';
+                _pinController.clear();
+              });
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('Verifikasi'),
+        ),
+      ],
     );
   }
 }
