@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../models/debt.dart';
 import '../models/payment.dart';
 import '../widgets/add_payment_dialog.dart';
 import '../utils/currency_formatter.dart';
 import 'payment_detail_screen.dart';
+
+const _deletePin = String.fromEnvironment('DELETE_PIN', defaultValue: '3351');
 
 class PaymentScreen extends StatefulWidget {
   final Debt debt;
@@ -29,11 +31,20 @@ class _PaymentScreenState extends State<PaymentScreen> {
   Future<void> _fetchPayments() async {
     setState(() => _isLoading = true);
     try {
-      final response = await Supabase.instance.client
-          .from('payments')
-          .select()
-          .eq('debt_id', widget.debt.id);
-      _payments = (response as List).map((json) => Payment.fromJson(json)).toList();
+      final response = await FirebaseFirestore.instance
+          .collection('payments')
+          .where('debt_id', isEqualTo: widget.debt.id)
+          .get();
+      _payments = response.docs
+          .map((doc) => Payment.fromJson({'id': doc.id, ...doc.data()}))
+          .toList()
+        ..sort((a, b) {
+          final dateCompare = b.tanggalBayar.compareTo(a.tanggalBayar);
+          if (dateCompare != 0) return dateCompare;
+          final aCreated = a.createdAt ?? a.tanggalBayar;
+          final bCreated = b.createdAt ?? b.tanggalBayar;
+          return bCreated.compareTo(aCreated);
+        });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -54,23 +65,25 @@ class _PaymentScreenState extends State<PaymentScreen> {
     ).then((_) => _fetchPayments());
   }
 
-  Future<void> _deletePayment(String paymentId) async {
+  Future<void> _deletePayment(Payment payment) async {
     // PIN verification first
     final pinVerified = await showDialog<bool>(
       context: context,
-      builder: (context) => _PinDialog(),
+      builder: (context) => const _PinDialog(expectedPin: _deletePin),
     );
 
     if (pinVerified != true) {
       return; // Cancel deletion if PIN is wrong or cancelled
     }
+    if (!mounted) return;
 
     // Confirmation dialog after PIN verification
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Konfirmasi Hapus'),
-        content: const Text('Apakah Anda yakin ingin menghapus pembayaran ini?'),
+        content:
+            const Text('Apakah Anda yakin ingin menghapus pembayaran ini?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -84,13 +97,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
         ],
       ),
     );
+    if (!mounted) return;
 
     if (confirmed == true) {
       try {
-        await Supabase.instance.client
-            .from('payments')
-            .delete()
-            .eq('id', paymentId);
+        await FirebaseFirestore.instance
+            .collection('payments')
+            .doc(payment.id)
+            .delete();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Pembayaran berhasil dihapus')),
@@ -109,7 +123,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final totalPaid = _payments.fold(0.0, (sum, payment) => sum + payment.jumlahBayar);
+    final totalPaid =
+        _payments.fold(0.0, (total, payment) => total + payment.jumlahBayar);
     final remaining = widget.debt.jumlahHutang - totalPaid;
 
     return Scaffold(
@@ -132,9 +147,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       ),
                       Text(
                         formatCurrency(widget.debt.jumlahHutang),
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                       ),
                     ],
                   ),
@@ -148,10 +164,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       ),
                       Text(
                         formatCurrency(totalPaid),
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: Colors.green,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold,
+                                ),
                       ),
                     ],
                   ),
@@ -165,10 +182,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       ),
                       Text(
                         formatCurrency(remaining),
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: remaining > 0 ? Colors.red : Colors.green,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(
+                              color: remaining > 0 ? Colors.red : Colors.green,
+                              fontWeight: FontWeight.bold,
+                            ),
                       ),
                     ],
                   ),
@@ -192,9 +212,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => PaymentDetailScreen(payment: payment),
+                                    builder: (context) =>
+                                        PaymentDetailScreen(payment: payment),
                                   ),
-                                );
+                                ).then((_) => _fetchPayments());
                               },
                               borderRadius: BorderRadius.circular(12),
                               child: Padding(
@@ -203,18 +224,25 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                   children: [
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             formatCurrency(payment.jumlahBayar),
-                                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                            ),
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleMedium
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
-                                            DateFormat('dd/MM/yyyy').format(payment.tanggalBayar),
-                                            style: Theme.of(context).textTheme.bodyMedium,
+                                            DateFormat('dd/MM/yyyy')
+                                                .format(payment.tanggalBayar),
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium,
                                           ),
                                         ],
                                       ),
@@ -222,13 +250,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                     Row(
                                       children: [
                                         if (payment.fotoUrl != null)
-                                          const Icon(Icons.image, color: Colors.green)
+                                          const Icon(Icons.image,
+                                              color: Colors.green)
                                         else
-                                          const Icon(Icons.image_not_supported, color: Colors.grey),
+                                          const Icon(Icons.image_not_supported,
+                                              color: Colors.grey),
                                         const SizedBox(width: 8),
                                         IconButton(
-                                          onPressed: () => _deletePayment(payment.id),
-                                          icon: const Icon(Icons.delete, color: Colors.red),
+                                          onPressed: () =>
+                                              _deletePayment(payment),
+                                          icon: const Icon(Icons.delete,
+                                              color: Colors.red),
                                           tooltip: 'Hapus Pembayaran',
                                         ),
                                       ],
@@ -252,7 +284,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
 }
 
 class _PinDialog extends StatefulWidget {
-  const _PinDialog();
+  const _PinDialog({required this.expectedPin});
+
+  final String expectedPin;
 
   @override
   State<_PinDialog> createState() => _PinDialogState();
@@ -305,7 +339,7 @@ class _PinDialogState extends State<_PinDialog> {
         ),
         ElevatedButton(
           onPressed: () {
-            if (_pinController.text == '3351') {
+            if (_pinController.text == widget.expectedPin) {
               Navigator.of(context).pop(true);
             } else {
               setState(() {

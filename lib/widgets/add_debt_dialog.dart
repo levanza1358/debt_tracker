@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import '../utils/input_parser.dart';
 
 class AddDebtDialog extends StatefulWidget {
   const AddDebtDialog({super.key});
@@ -15,6 +16,14 @@ class _AddDebtDialogState extends State<AddDebtDialog> {
   final _jumlahController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
   final _deskripsiController = TextEditingController();
+
+  @override
+  void dispose() {
+    _namaController.dispose();
+    _jumlahController.dispose();
+    _deskripsiController.dispose();
+    super.dispose();
+  }
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
@@ -32,12 +41,22 @@ class _AddDebtDialogState extends State<AddDebtDialog> {
 
   Future<void> _saveDebt() async {
     if (_formKey.currentState!.validate()) {
+      final jumlahHutang = parseRupiahInput(_jumlahController.text);
+      if (jumlahHutang == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Jumlah hutang tidak valid')),
+        );
+        return;
+      }
+
       try {
-        await Supabase.instance.client.from('debts').insert({
+        await FirebaseFirestore.instance.collection('debts').add({
           'nama_hutang': _namaController.text,
-          'jumlah_hutang': double.parse(_jumlahController.text),
+          'jumlah_hutang': jumlahHutang,
           'tanggal_hutang': _selectedDate.toIso8601String().split('T').first,
-          'deskripsi': _deskripsiController.text.isEmpty ? null : _deskripsiController.text,
+          'deskripsi': _deskripsiController.text.isEmpty
+              ? null
+              : _deskripsiController.text,
         });
         if (mounted) {
           Navigator.of(context).pop();
@@ -67,7 +86,8 @@ class _AddDebtDialogState extends State<AddDebtDialog> {
                 labelText: 'Nama Hutang',
                 hintText: 'Contoh: Hutang ke Ahmad',
               ),
-              validator: (value) => value!.isEmpty ? 'Nama hutang harus diisi' : null,
+              validator: (value) =>
+                  value!.isEmpty ? 'Nama hutang harus diisi' : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -77,7 +97,15 @@ class _AddDebtDialogState extends State<AddDebtDialog> {
                 hintText: 'Contoh: 500000',
               ),
               keyboardType: TextInputType.number,
-              validator: (value) => value!.isEmpty ? 'Jumlah hutang harus diisi' : null,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Jumlah hutang harus diisi';
+                }
+                if (parseRupiahInput(value) == null) {
+                  return 'Format nominal tidak valid';
+                }
+                return null;
+              },
             ),
             const SizedBox(height: 16),
             Row(

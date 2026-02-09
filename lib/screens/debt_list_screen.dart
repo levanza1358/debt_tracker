@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:intl/intl.dart';
 import '../models/debt.dart';
 import '../widgets/add_debt_dialog.dart';
@@ -15,6 +16,7 @@ class DebtListScreen extends StatefulWidget {
 
 class _DebtListScreenState extends State<DebtListScreen> {
   List<Debt> _debts = [];
+  Map<String, double> _paymentTotals = {};
   bool _isLoading = true;
 
   @override
@@ -26,8 +28,26 @@ class _DebtListScreenState extends State<DebtListScreen> {
   Future<void> _fetchDebts() async {
     setState(() => _isLoading = true);
     try {
-      final response = await Supabase.instance.client.from('debts').select();
-      _debts = (response as List).map((json) => Debt.fromJson(json)).toList();
+      final debtsFuture = FirebaseFirestore.instance.collection('debts').get();
+      final paymentsFuture =
+          FirebaseFirestore.instance.collection('payments').get();
+      final debtsResponse = await debtsFuture;
+      final paymentsResponse = await paymentsFuture;
+
+      _debts = debtsResponse.docs
+          .map((doc) => Debt.fromJson({'id': doc.id, ...doc.data()}))
+          .toList()
+        ..sort((a, b) => b.tanggalHutang.compareTo(a.tanggalHutang));
+
+      final totals = <String, double>{};
+      for (final item in paymentsResponse.docs) {
+        final data = item.data();
+        final debtId = data['debt_id'] as String?;
+        final amount = (data['jumlah_bayar'] as num?)?.toDouble() ?? 0.0;
+        if (debtId == null) continue;
+        totals[debtId] = (totals[debtId] ?? 0.0) + amount;
+      }
+      _paymentTotals = totals;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -38,25 +58,6 @@ class _DebtListScreenState extends State<DebtListScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
-    }
-  }
-
-  Future<double> _getTotalPayments(String debtId) async {
-    try {
-      final response = await Supabase.instance.client
-          .from('payments')
-          .select('jumlah_bayar')
-          .eq('debt_id', debtId);
-      final payments = (response as List<dynamic>).map<double>((json) {
-        final data = json as Map<String, dynamic>;
-        return (data['jumlah_bayar'] as num).toDouble();
-      }).toList();
-      return payments.fold<double>(
-        0.0,
-        (double sum, double amount) => sum + amount,
-      );
-    } catch (e) {
-      return 0.0;
     }
   }
 
@@ -79,7 +80,8 @@ class _DebtListScreenState extends State<DebtListScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Konfirmasi Hapus'),
-        content: const Text('Apakah Anda yakin ingin menghapus hutang ini? Semua pembayaran terkait juga akan dihapus.'),
+        content: const Text(
+            'Apakah Anda yakin ingin menghapus hutang ini? Semua pembayaran terkait juga akan dihapus.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -96,17 +98,25 @@ class _DebtListScreenState extends State<DebtListScreen> {
 
     if (confirmed == true) {
       try {
-        // Delete related payments first
-        await Supabase.instance.client
-            .from('payments')
-            .delete()
-            .eq('debt_id', debtId);
+        final paymentSnapshot = await FirebaseFirestore.instance
+            .collection('payments')
+            .where('debt_id', isEqualTo: debtId)
+            .get();
 
-        // Then delete the debt
-        await Supabase.instance.client
-            .from('debts')
-            .delete()
-            .eq('id', debtId);
+        for (final doc in paymentSnapshot.docs) {
+          final fotoUrl = doc.data()['foto_url'] as String?;
+          if (fotoUrl != null && fotoUrl.isNotEmpty) {
+            try {
+              await FirebaseStorage.instance.refFromURL(fotoUrl).delete();
+            } catch (_) {}
+          }
+          await doc.reference.delete();
+        }
+
+        await FirebaseFirestore.instance
+            .collection('debts')
+            .doc(debtId)
+            .delete();
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -131,16 +141,13 @@ class _DebtListScreenState extends State<DebtListScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _debts.isEmpty
-          ? const Center(child: Text('Belum ada hutang'))
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _debts.length,
-              itemBuilder: (context, index) {
-                final debt = _debts[index];
-                return FutureBuilder<double>(
-                  future: _getTotalPayments(debt.id),
-                  builder: (context, snapshot) {
-                    final totalPaid = snapshot.data ?? 0.0;
+              ? const Center(child: Text('Belum ada hutang'))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _debts.length,
+                  itemBuilder: (context, index) {
+                    final debt = _debts[index];
+                    final totalPaid = _paymentTotals[debt.id] ?? 0.0;
                     final remaining = debt.jumlahHutang - totalPaid;
                     final isFullyPaid = remaining <= 0;
 
@@ -153,37 +160,38 @@ class _DebtListScreenState extends State<DebtListScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      debt.namaHutang,
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.titleLarge,
+                                    ),
+                                  ),
                                   Row(
                                     children: [
-                                      Expanded(
-                                        child: Text(
-                                          debt.namaHutang,
-                                          style: Theme.of(
-                                            context,
-                                          ).textTheme.titleLarge,
+                                      if (isFullyPaid)
+                                        const Icon(
+                                          Icons.check_circle,
+                                          color: Colors.green,
+                                        )
+                                      else
+                                        const Icon(
+                                          Icons.pending,
+                                          color: Colors.orange,
                                         ),
-                                      ),
-                                      Row(
-                                        children: [
-                                          if (isFullyPaid)
-                                            const Icon(
-                                              Icons.check_circle,
-                                              color: Colors.green,
-                                            )
-                                          else
-                                            const Icon(
-                                              Icons.pending,
-                                              color: Colors.orange,
-                                            ),
-                                          IconButton(
-                                            onPressed: () => _deleteDebt(debt.id),
-                                            icon: const Icon(Icons.delete, color: Colors.red),
-                                            tooltip: 'Hapus Hutang',
-                                          ),
-                                        ],
+                                      IconButton(
+                                        onPressed: () => _deleteDebt(debt.id),
+                                        icon: const Icon(Icons.delete,
+                                            color: Colors.red),
+                                        tooltip: 'Hapus Hutang',
                                       ),
                                     ],
                                   ),
+                                ],
+                              ),
                               const SizedBox(height: 8),
                               Text(
                                 'Tanggal: ${DateFormat('dd/MM/yyyy').format(debt.tanggalHutang)}',
@@ -205,59 +213,79 @@ class _DebtListScreenState extends State<DebtListScreen> {
                               const SizedBox(height: 12),
                               Row(
                                 children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Total Hutang',
-                                              style: Theme.of(context).textTheme.bodySmall,
-                                            ),
-                                            Text(
-                                              formatCurrency(debt.jumlahHutang),
-                                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Total Hutang',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall,
+                                        ),
+                                        Text(
+                                          formatCurrency(debt.jumlahHutang),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium
+                                              ?.copyWith(
                                                 fontWeight: FontWeight.bold,
                                               ),
-                                            ),
-                                          ],
                                         ),
-                                      ),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Sudah Dibayar',
-                                              style: Theme.of(context).textTheme.bodySmall,
-                                            ),
-                                            Text(
-                                              formatCurrency(totalPaid),
-                                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                      ],
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Sudah Dibayar',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall,
+                                        ),
+                                        Text(
+                                          formatCurrency(totalPaid),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium
+                                              ?.copyWith(
                                                 color: Colors.green,
                                                 fontWeight: FontWeight.bold,
                                               ),
-                                            ),
-                                          ],
                                         ),
-                                      ),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Sisa',
-                                              style: Theme.of(context).textTheme.bodySmall,
-                                            ),
-                                            Text(
-                                              formatCurrency(remaining),
-                                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                                color: remaining > 0 ? Colors.red : Colors.green,
+                                      ],
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Sisa',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall,
+                                        ),
+                                        Text(
+                                          formatCurrency(remaining),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium
+                                              ?.copyWith(
+                                                color: remaining > 0
+                                                    ? Colors.red
+                                                    : Colors.green,
                                                 fontWeight: FontWeight.bold,
                                               ),
-                                            ),
-                                          ],
                                         ),
-                                      ),
+                                      ],
+                                    ),
+                                  ),
                                 ],
                               ),
                             ],
@@ -266,9 +294,7 @@ class _DebtListScreenState extends State<DebtListScreen> {
                       ),
                     );
                   },
-                );
-              },
-            ),
+                ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addDebt,
         child: const Icon(Icons.add),

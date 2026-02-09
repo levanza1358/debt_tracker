@@ -28,7 +28,12 @@ jobs:
       run: flutter pub get
 
     - name: Build web
-      run: flutter build web --release --base-href "/debt_tracker/"  # Ganti base-href sesuai repo
+      run: >
+        flutter build web --release
+        --base-href "/${{ github.event.repository.name }}/"
+        --dart-define TELEGRAM_BOT_TOKEN="${{ secrets.TELEGRAM_BOT_TOKEN }}"
+        --dart-define TELEGRAM_CHAT_ID="${{ secrets.TELEGRAM_CHAT_ID }}"
+        --dart-define DELETE_PIN="${{ secrets.DELETE_PIN }}"
 
     - name: Copy additional files
       run: |

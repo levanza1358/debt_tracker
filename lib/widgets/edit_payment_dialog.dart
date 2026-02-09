@@ -1,27 +1,35 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import '../models/payment.dart';
 import '../services/telegram_service.dart';
 import '../utils/input_parser.dart';
 
-class AddPaymentDialog extends StatefulWidget {
-  final String debtId;
+class EditPaymentDialog extends StatefulWidget {
+  const EditPaymentDialog({super.key, required this.payment});
 
-  const AddPaymentDialog({super.key, required this.debtId});
+  final Payment payment;
 
   @override
-  State<AddPaymentDialog> createState() => _AddPaymentDialogState();
+  State<EditPaymentDialog> createState() => _EditPaymentDialogState();
 }
 
-class _AddPaymentDialogState extends State<AddPaymentDialog> {
+class _EditPaymentDialogState extends State<EditPaymentDialog> {
   final _formKey = GlobalKey<FormState>();
   final _jumlahController = TextEditingController();
-  DateTime _selectedDate = DateTime.now();
+  late DateTime _selectedDate;
   XFile? _imageFile;
-  bool _isUploading = false;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _jumlahController.text = widget.payment.jumlahBayar.toStringAsFixed(0);
+    _selectedDate = widget.payment.tanggalBayar;
+  }
 
   @override
   void dispose() {
@@ -30,104 +38,105 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
+    final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
     );
     if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-      });
+      setState(() => _selectedDate = picked);
     }
   }
 
   Future<void> _pickImage() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    final picker = ImagePicker();
+    final image = await picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
-      setState(() {
-        _imageFile = image;
-      });
+      setState(() => _imageFile = image);
     }
   }
 
   Future<String?> _uploadImage(XFile imageFile) async {
-    try {
-      final caption =
-          'Bukti pembayaran\nDebt ID: ${widget.debtId}\nTanggal: ${DateFormat('dd/MM/yyyy').format(_selectedDate)}';
-      return TelegramService.uploadPhotoToGroup(
-        file: imageFile,
-        caption: caption,
-      );
-    } catch (e) {
-      return null;
-    }
+    final caption =
+        'Edit bukti pembayaran\nDebt ID: ${widget.payment.debtId}\nPayment ID: ${widget.payment.id}\nTanggal: ${DateFormat('dd/MM/yyyy').format(_selectedDate)}';
+    return TelegramService.uploadPhotoToGroup(
+        file: imageFile, caption: caption);
   }
 
-  Future<void> _savePayment() async {
-    if (_formKey.currentState!.validate()) {
-      final jumlahBayar = parseRupiahInput(_jumlahController.text);
-      if (jumlahBayar == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Jumlah bayar tidak valid')),
-        );
-        return;
-      }
+  Future<void> _saveEdit() async {
+    if (!_formKey.currentState!.validate()) return;
 
-      setState(() => _isUploading = true);
-      String? fotoUrl;
-      if (_imageFile != null) {
-        if (!TelegramService.isConfigured) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Telegram belum dikonfigurasi. Isi TELEGRAM_BOT_TOKEN dan TELEGRAM_CHAT_ID.',
-                ),
-              ),
-            );
-          }
-          setState(() => _isUploading = false);
-          return;
-        }
-        fotoUrl = await _uploadImage(_imageFile!);
-        if (fotoUrl == null) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Upload foto ke Telegram gagal. Cek bot token, chat id, dan izin bot di grup.',
-                ),
-              ),
-            );
-          }
-          setState(() => _isUploading = false);
-          return;
-        }
-      }
-      try {
-        await FirebaseFirestore.instance.collection('payments').add({
-          'debt_id': widget.debtId,
-          'jumlah_bayar': jumlahBayar,
-          'tanggal_bayar': _selectedDate.toIso8601String().split('T').first,
-          'created_at': FieldValue.serverTimestamp(),
-          'foto_url': fotoUrl,
-        });
-        if (mounted) {
-          Navigator.of(context).pop();
-        }
-      } catch (e) {
+    final jumlahBayar = parseRupiahInput(_jumlahController.text);
+    if (jumlahBayar == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Jumlah bayar tidak valid')),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    String? fotoUrl = widget.payment.fotoUrl;
+
+    if (_imageFile != null) {
+      if (!TelegramService.isConfigured) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e')),
+            const SnackBar(
+              content: Text(
+                'Telegram belum dikonfigurasi. Isi TELEGRAM_BOT_TOKEN dan TELEGRAM_CHAT_ID.',
+              ),
+            ),
           );
         }
-      } finally {
+        setState(() => _isSaving = false);
+        return;
+      }
+      fotoUrl = await _uploadImage(_imageFile!);
+      if (fotoUrl == null) {
         if (mounted) {
-          setState(() => _isUploading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Upload foto ke Telegram gagal. Cek bot token, chat id, dan izin bot di grup.',
+              ),
+            ),
+          );
         }
+        setState(() => _isSaving = false);
+        return;
+      }
+    }
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('payments')
+          .doc(widget.payment.id)
+          .update({
+        'jumlah_bayar': jumlahBayar,
+        'tanggal_bayar': _selectedDate.toIso8601String().split('T').first,
+        'foto_url': fotoUrl,
+      });
+
+      if (!mounted) return;
+      Navigator.of(context).pop(
+        Payment(
+          id: widget.payment.id,
+          debtId: widget.payment.debtId,
+          jumlahBayar: jumlahBayar,
+          tanggalBayar: _selectedDate,
+          createdAt: widget.payment.createdAt,
+          fotoUrl: fotoUrl,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+      if (mounted) {
+        setState(() => _isSaving = false);
       }
     }
   }
@@ -135,7 +144,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Tambah Pembayaran'),
+      title: const Text('Edit Pembayaran'),
       content: Form(
         key: _formKey,
         child: Column(
@@ -181,7 +190,8 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                   height: 60,
                   decoration: BoxDecoration(
                     border: Border.all(
-                        color: _imageFile != null ? Colors.green : Colors.grey),
+                      color: _imageFile != null ? Colors.green : Colors.grey,
+                    ),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: _imageFile != null
@@ -196,16 +206,25 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
                                 fit: BoxFit.cover,
                               ),
                             ))
-                      : const Icon(Icons.image, color: Colors.grey),
+                      : Icon(
+                          widget.payment.fotoUrl != null
+                              ? Icons.image
+                              : Icons.image_not_supported,
+                          color: widget.payment.fotoUrl != null
+                              ? Colors.blue
+                              : Colors.grey,
+                        ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: TextButton.icon(
                     onPressed: _pickImage,
                     icon: const Icon(Icons.photo_library),
-                    label: Text(_imageFile != null
-                        ? 'Ganti Bukti Bayar'
-                        : 'Pilih Bukti Bayar'),
+                    label: Text(
+                      _imageFile != null || widget.payment.fotoUrl != null
+                          ? 'Ganti Bukti Bayar'
+                          : 'Pilih Bukti Bayar',
+                    ),
                   ),
                 ),
               ],
@@ -214,7 +233,7 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
-                  'Bukti pembayaran akan dikirim ke grup Telegram',
+                  'Foto baru akan dikirim ke grup Telegram',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Colors.green,
                       ),
@@ -228,15 +247,15 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Batal'),
         ),
-        _isUploading
+        _isSaving
             ? const SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
             : ElevatedButton(
-                onPressed: _savePayment,
-                child: const Text('Simpan'),
+                onPressed: _saveEdit,
+                child: const Text('Simpan Perubahan'),
               ),
       ],
     );
